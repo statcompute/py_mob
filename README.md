@@ -18,7 +18,17 @@ import sas7bdat, py_mob
 
 df = sas7bdat.SAS7BDAT("accepts.sas7bdat").to_data_frame()
 
-scr = df.bureau_score.to_numpy()
+utl = df.rev_util.to_numpy()
 
 bad = df.bad.to_numpy()
+
+utl_bin = py_mob.qtl_bin(utl, bad)
+
+py_mob.view_bin(utl_bin)
+#|   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule        |
+#|-------+--------+--------+--------+--------+---------+--------+-------------|
+#|     1 |   2962 |      0 |    467 | 0.1577 | -0.3198 | 0.047  | $X$ <= 30.0 |
+#|     2 |   2875 |      0 |    729 | 0.2536 |  0.2763 | 0.0406 | $X$ > 30.0  |
+
+
 ```
