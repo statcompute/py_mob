@@ -5,6 +5,12 @@
 
 As an attempt to mimic the mob R package (https://CRAN.R-project.org/package=mob), the py_mob is a collection of python functions that would generate the monotonic binning and perform the WoE (Weight of Evidence) transformation used in consumer credit scorecard developments. In addition, Information Value and KS statistic of each independent variables is also calculated to evaluate the variable predictiveness.
 
+Different from other python packages for the same purpose, the py_mob is very lightweight and the underlying computation is driven by the built-in python list or the numpy array. 
+
+#### Package Dependencies
+
+numpy, scipy, sklearn, tabulate
+
 #### Installation
 
 ```python
