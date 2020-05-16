@@ -10,3 +10,15 @@ As an attempt to mimic the mob R package (https://CRAN.R-project.org/package=mob
 ```python
 pip3 install py_mob
 ```
+
+#### Example
+
+```python
+import sas7bdat, py_mob
+
+df = sas7bdat.SAS7BDAT("accepts.sas7bdat").to_data_frame()
+
+scr = df.bureau_score.to_numpy()
+
+bad = df.bad.to_numpy()
+```
