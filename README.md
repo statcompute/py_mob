@@ -30,6 +30,13 @@ bad = df.bad.to_numpy()
 
 utl_bin = py_mob.qtl_bin(utl, bad)
 
+for key in utl_bin:
+  for lst in utl_bin[key]:
+    print(lst)
+#30.0
+#{'bin': 1, 'freq': 2962, 'miss': 0, 'bads': 467.0, 'rate': 0.1577, 'woe': -0.3198, 'iv': 0.047, 'rule': '$X$ <= 30.0'}
+#{'bin': 2, 'freq': 2875, 'miss': 0, 'bads': 729.0, 'rate': 0.2536, 'woe': 0.2763, 'iv': 0.0406, 'rule': '$X$ > 30.0'}
+
 py_mob.view_bin(utl_bin)
 #|   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule        |
 #|-------+--------+--------+--------+--------+---------+--------+-------------|
