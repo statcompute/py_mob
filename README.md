@@ -11,7 +11,9 @@ Currently, three different monotonic binning algorithms are implemented, namely 
 
 #### Package Dependencies
 
+```text
 numpy, scipy, sklearn, tabulate
+```
 
 #### Installation
 
