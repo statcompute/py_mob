@@ -21,6 +21,20 @@ numpy, scipy, sklearn, tabulate
 pip3 install py_mob
 ```
 
+#### Functions
+
+```
+py_mob
+   |-- bad_bin.py
+   |-- iso_bin.py
+   |-- manual_bin.py
+   |-- miss_bin.py
+   |-- qcut.py
+   |-- qtl_bin.py
+   |-- summ_bin.py
+   `-- view_bin.py
+```
+
 #### Example
 
 ```python
