@@ -27,7 +27,7 @@ pip3 install py_mob
 py_mob
    |-- bad_bin(): It is a revised version of the iterative discretization for records with Y = 1.
    |-- iso_bin(): It is a discretization algorthm driven by the isotonic regression between X and Y. 
-   |-- qtl_bin(): It is an iterative discretization based on quantiles. 
+   |-- qtl_bin(): It is an iterative discretization based on quantiles of X.  
    |-- summ_bin(): It generates the statistical summary for the binning outcome. 
    `-- view_bin(): It displays the binning outcome in a tabular form. 
 ```
