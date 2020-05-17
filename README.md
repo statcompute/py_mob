@@ -21,18 +21,15 @@ numpy, scipy, sklearn, tabulate
 pip3 install py_mob
 ```
 
-#### Functions
+#### Core Functions
 
 ```
 py_mob
-   |-- bad_bin.py
-   |-- iso_bin.py
-   |-- manual_bin.py
-   |-- miss_bin.py
-   |-- qcut.py
-   |-- qtl_bin.py
-   |-- summ_bin.py
-   `-- view_bin.py
+   |-- bad_bin(): It is a revised version of the iterative discretization for records with Y = 1.
+   |-- iso_bin(): It is a discretization algorthm driven by the isotonic regression between X and Y. 
+   |-- qtl_bin(): It is an iterative discretization based on quantiles. 
+   |-- summ_bin(): It generates the statistical summary for the binning outcome. 
+   `-- view_bin(): It displays the binning outcome in a tabular form. 
 ```
 
 #### Example
