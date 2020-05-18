@@ -39,9 +39,9 @@ import sas7bdat, py_mob
 
 df = sas7bdat.SAS7BDAT("accepts.sas7bdat").to_data_frame()
 
-utl = df.rev_util.to_numpy()
+utl = df.rev_util
 
-bad = df.bad.to_numpy()
+bad = df.bad
 
 utl_bin = py_mob.qtl_bin(utl, bad)
 
