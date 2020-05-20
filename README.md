@@ -1,3 +1,7 @@
+<p align="center">
+  <img width="150" height="100" src="py_mob/py_mob1.jpg">
+</p>
+
 ### <p align="center">  Python Implementation of </p>
 ### <p align="center"> Monotonic Optimal Binning (MOB) </p>
 
