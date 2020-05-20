@@ -3,7 +3,7 @@
 </p>
 
 ### <p align="center">  Python Implementation of </p>
-### <p align="center"> Monotonic Optimal Binning (MOB) </p>
+### <p align="center"> Monotonic Optimal Binning (py_mob) </p>
 
 #### Introduction
 
