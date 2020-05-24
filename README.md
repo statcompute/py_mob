@@ -12,7 +12,7 @@ As an attempt to mimic the mob R package (https://CRAN.R-project.org/package=mob
 Different from other python packages for the same purpose, the py_mob package is very lightweight and the underlying computation is driven by the built-in python list or the numpy array. Functions would return lists of dictionaries, which can be easily converted to other data structures, such as pandas.DataFrame or astropy.table. 
 
 Currently, four different monotonic binning algorithms are implemented, namely qtl_bin(), bad_bin(), iso_bin(), and rng_bin(). For details, please see core functions below. 
-
+https://github.com/statcompute/py\_mob
 #### Package Dependencies
 
 ```text
