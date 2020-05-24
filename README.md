@@ -33,6 +33,7 @@ py_mob
    |-- bad_bin()  : A revised iterative discretization for records with Y = 1.
    |-- iso_bin()  : A discretization algorthm driven by the isotonic regression between X and Y.
    |-- rng_bin()  : A revised iterative discretization based on the equal-width range of X.
+   |-- kmn_bin()  : A discretization algorthm based on the kmean clustering of X.
    |-- summ_bin() : Generates the statistical summary for the binning outcome.
    |-- view_bin() : Displays the binning outcome in a tabular form.
    `-- cal_woe()  : Applies the WoE transformation to a numeric vector based on the binning outcome.
