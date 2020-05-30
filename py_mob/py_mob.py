@@ -1,6 +1,6 @@
 # py_mob/py_mob.py
 
-import numpy, scipy.stats, sklearn.isotonic, tabulate
+import numpy, scipy.stats, sklearn.isotonic, sklearn.cluster, lightgbm, tabulate
 
 
 ###################################################################################################
@@ -111,11 +111,16 @@ def view_bin(x):
     |     2 |    891 |      0 |    193 | 0.2166 |  0.0704 | 0.0008 | ($X$ > 0.0) and ($X$ <= 1.0) |
     |     3 |    810 |      0 |    207 | 0.2556 |  0.2867 | 0.0124 | ($X$ > 1.0) and ($X$ <= 3.0) |
     |     4 |   1073 |      0 |    359 | 0.3346 |  0.6684 | 0.0978 | $X$ > 3.0                    |
-
   """
-  
-  print(tabulate.tabulate(x['tbl'], headers = "keys", tablefmt = "github",
-                        floatfmt = (".0f", ".0f", ".0f", ".0f", ".4f", ".4f", ".4f")))
+
+  tabulate.PRESERVE_WHITESPACE = True
+
+  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv"]
+
+  _tbl = [{**(lambda v: {k: v[k] for k in _sel})(_), "rule": _["rule"].ljust(50)} for _ in x["tbl"]]
+
+  print(tabulate.tabulate(_tbl, headers = "keys", tablefmt = "github", colalign = ["center"] + ["right"] * 5 + ["center"] * 2,
+                          floatfmt = (".0f", ".0f", ".0f", ".0f", ".4f", ".4f", ".4f")))  
 
 
 ###################################################################################################
@@ -149,13 +154,13 @@ def qcut(x, n):
 
 def manual_bin(x, y, cuts):
   """
-  The function discretizes the x vector and then summarizes over the y vector 
+  The function discretizes the x vector and then summarizes over the y vector
   based on the discretization result.
 
   Parameters:
     x    : A numeric vector to discretize without missing values, e.g. numpy.nan or math.nan
-    y    : A numeric vector with binary values of 0/1 and with the same length of x 
-    cuts : A list of numeric values as cut points to discretize x. 
+    y    : A numeric vector with binary values of 0/1 and with the same length of x
+    cuts : A list of numeric values as cut points to discretize x.
 
   Returns:
     A list of dictionaries for the binning outcome with following keys:
@@ -181,16 +186,14 @@ def manual_bin(x, y, cuts):
   _c = sorted([_ for _ in set(cuts)] + [numpy.NINF, numpy.PINF])
   _g = numpy.searchsorted(_c, _x).tolist()
 
-  _l1 = list(dict(zip(['g', 'x', 'y'], _)) for _ in zip(_g, _x, _y))
-  _l2 = zip(set(_g), [[l for l in _l1 if l["g"] == g] for g in set(_g)])
+  _l1 = sorted(zip(_g, _x, _y), key = lambda x: x[0])
+  _l2 = zip(set(_g), [[l for l in _l1 if l[0] == g] for g in set(_g)])
 
   return(sorted([dict(zip(["bin", "freq", "miss", "bads", "minx", "maxx"],
-                          [_1, 
-                           len(_2), 
-                           0,
-                           sum([_["y"] for _ in _2]),
-                           min([_["x"] for _ in _2]),
-                           max([_["x"] for _ in _2])])) for _1, _2 in _l2], 
+                          [_1, len(_2), 0,
+                           sum([_[2] for _ in _2]),
+                           min([_[1] for _ in _2]),
+                           max([_[1] for _ in _2])])) for _1, _2 in _l2],
                 key = lambda x: x["bin"]))
 
 
@@ -206,13 +209,7 @@ def miss_bin(y):
     y : A numeric vector with binary values of 0/1.
 
   Returns:
-    A dictionary with following keys:
-      "bin"  : 0 as default 
-      "freq" : the number of records 
-      "miss" : same value as "freq"
-      "bads" : the number of records with y = 1
-      "minx" : nan as default
-      "maxx" : nan as default
+    A dictionary.
   """
 
   return({"bin": 0, "freq": len([_ for _ in y]), "miss": len([_ for _ in y]), 
@@ -230,12 +227,12 @@ def qtl_bin(x, y):
   Parameters:
     x : A numeric vector to discretize. It is a list, 1-D numpy array, or pandas series.
     y : A numeric vector with binary values of 0/1 and with the same length of x.
+        It is a list, 1-D numpy array, or pandas series.
 
   Returns:
     A dictionary with two keys:
       "cut" : A numeric vector with cut points applied to the x vector.
       "tbl" : A list of dictionaries summarizing the binning outcome. 
-              It is a list, 1-D numpy array, or pandas series.
 
   Example:
     qtl_bin(derog, bad)["cut"]
@@ -599,3 +596,211 @@ def rng_bin(x, y):
 
   return({"cut": _l3, "tbl": [{k: _[k] for k in _sel} for _ in _l5]})
 
+
+##################################################################################################
+
+
+def kmn_bin(x, y):
+  """
+  The function discretizes the x vector based on the kmean clustering and then summarizes over
+  the y vector to derive the weight of evidence transformaton (WoE) and information values.
+
+  Parameters:
+    x : A numeric vector to discretize. It is a list, 1-D numpy array, or pandas series.
+    y : A numeric vector with binary values of 0/1 and with the same length of x.
+        It is a list, 1-D numpy array, or pandas series.
+
+  Returns:
+    A dictionary with two keys:
+      "cut" : A numeric vector with cut points applied to the x vector.
+      "tbl" : A list of dictionaries summarizing the binning outcome.
+
+  Example:
+    kmn_bin(derog, bad)['cut']
+    # [1.0, 5.0, 11.0]
+
+    view_bin(kmn_bin(derog, bad)) 
+
+    |   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule                          |
+    |-------|--------|--------|--------|--------|---------|--------|-------------------------------|
+    |     0 |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 | numpy.isnan($X$)              |
+    |     1 |   3741 |      0 |    560 | 0.1497 | -0.3811 | 0.0828 | $X$ <= 1.0                    |
+    |     2 |   1249 |      0 |    366 | 0.2930 |  0.4753 | 0.0550 | ($X$ > 1.0) and ($X$ <= 5.0)  |
+    |     3 |    504 |      0 |    157 | 0.3115 |  0.5629 | 0.0318 | ($X$ > 5.0) and ($X$ <= 11.0) |
+    |     4 |    130 |      0 |     43 | 0.3308 |  0.6512 | 0.0112 | $X$ > 11.0                    |
+  """
+
+  _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
+  _freq = len(_data)
+  _bads = sum([_[1] for _ in _data])
+
+  _x = [_[0] for _ in _data if _[2] == 1]
+  _y = [_[1] for _ in _data if _[2] == 1]
+  _n = numpy.arange(2, max(3, min(20, len(numpy.unique(_x)) - 1)))
+
+  _c1 = [sklearn.cluster.KMeans(n_clusters = _).fit(numpy.reshape(_x, [-1, 1])).labels_ for _ in _n]
+  _c2 = [sorted(_l, key = lambda x: x[0]) for _l in [list(zip(_, _x)) for _ in _c1]]
+
+  group = lambda x: [[_l for _l in x if _l[0] == _k] for _k in set([_[0] for _ in x])]
+
+  upper = lambda x: sorted([max([_2[1] for _2 in _1]) for _1 in x])
+
+  _md = [[numpy.median([_[0] for _ in _data if _[2] == 1])],
+         [numpy.median([_[0] for _ in _data if _[2] == 1 and _[1] == 1])]]
+
+  _c3 = list(numpy.unique([upper(_2)[:-1] for _2 in [group(_1) for _1 in _c2]])) + _md
+
+  _l1 = [[_, manual_bin(_x, _y, _)] for _ in _c3]
+
+  _l2 = [[l[0], 
+          min([_["bads"] / _["freq"] for _ in l[1]]), 
+          max([_["bads"] / _["freq"] for _ in l[1]]),
+          scipy.stats.spearmanr([_["bin"] for _ in l[1]], [_["bads"] / _["freq"] for _ in l[1]])[0]
+         ] for l in _l1]
+
+  _l3 = [l[0] for l in sorted(_l2, key = lambda x: -len(x[0]))
+         if numpy.abs(round(l[3], 8)) == 1 and round(l[1], 8) > 0 and round(l[2], 8) < 1][0]
+
+  _l4 = sorted(*[l[1] for l in _l1 if l[0] == _l3], key = lambda x: x["bads"] / x["freq"])
+
+  if len([_ for _ in _data if _[2] == 0]) > 0:
+    _m1 = miss_bin([_[1] for _ in _data if _[2] == 0])
+    if _m1["bads"] == 0:
+      for _ in ['freq', 'miss', 'bads']:
+        _l4[0][_]  = _l4[0][_]  + _m1[_]
+    elif _m1["freq"] == _m1["bads"]:
+      for _ in ['freq', 'miss', 'bads']:
+        _l4[-1][_]  = _l4[-1][_]  + _m1[_]
+    else:
+      _l4.append(_m1)
+
+  _l5 = sorted([{**_, 
+                 "rate": round(_["bads"] / _["freq"], 4),
+                 "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
+                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
+                               numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
+                } for _ in _l4], key = lambda x: x["bin"])
+
+  for _ in _l5:
+    if _["bin"] == 0:
+      _["rule"] = "numpy.isnan($X$)"
+    elif _["bin"] == len(_l3) + 1:
+      if _["miss"] == 0:
+        _["rule"] = "$X$ > " + str(_l3[-1])
+      else:
+        _["rule"] = "($X$ > " + str(_l3[-1]) + ") or numpy.isnan($X$)"
+    elif _["bin"] == 1:
+      if _["miss"] == 0:
+        _["rule"] = "$X$ <= " + str(_l3[0])
+      else:
+        _["rule"] = "($X$ <= " + str(_l3[0]) + ") or numpy.isnan($X$)"
+    else:
+        _["rule"] = "($X$ > " + str(_l3[_["bin"] - 2]) + ") and ($X$ <= " + str(_l3[_["bin"] - 1]) + ")"
+
+  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "rule"]
+
+  return({"cut": _l3, "tbl": [{k: _[k] for k in _sel} for _ in _l5]})
+
+
+##################################################################################################
+
+
+def gbm_bin(x, y):
+  """
+  The function discretizes the x vector based on the gradient boosting machine and then summarizes 
+  over the y vector to derive the weight of evidence transformaton (WoE) and information values.
+
+  Parameters:
+    x : A numeric vector to discretize. It is a list, 1-D numpy array, or pandas series. 
+    y : A numeric vector with binary values of 0/1 and with the same length of x.
+        It is a list, 1-D numpy array, or pandas series.
+
+  Returns:
+    A dictionary with two keys:
+      "cut" : A numeric vector with cut points applied to the x vector.
+      "tbl" : A list of dictionaries summarizing the binning outcome.
+
+  Example:
+    gbm_bin(derog, bad)["cut"]
+    # [1.0, 2.0, 3.0, 22.0, 26.0]
+
+    view_bin(gbm_bin(derog, bad))
+
+    |   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule                           |
+    |-------|--------|--------|--------|--------|---------|--------|--------------------------------|
+    |     0 |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 | numpy.isnan($X$)               |
+    |     1 |   3741 |      0 |    560 | 0.1497 | -0.3811 | 0.0828 | $X$ <= 1.0                     |
+    |     2 |    478 |      0 |    121 | 0.2531 |  0.2740 | 0.0066 | ($X$ > 1.0) and ($X$ <= 2.0)   |
+    |     3 |    332 |      0 |     86 | 0.2590 |  0.3050 | 0.0058 | ($X$ > 2.0) and ($X$ <= 3.0)   |
+    |     4 |   1063 |      0 |    353 | 0.3321 |  0.6572 | 0.0934 | ($X$ > 3.0) and ($X$ <= 22.0)  |
+    |     5 |      6 |      0 |      3 | 0.5000 |  1.3559 | 0.0025 | ($X$ > 22.0) and ($X$ <= 26.0) |
+    |     6 |      4 |      0 |      3 | 0.7500 |  2.4546 | 0.0056 | $X$ > 26.0                     |
+  """
+
+  _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
+  _freq = len(_data)
+  _bads = sum([_[1] for _ in _data])
+
+  _x = [_[0] for _ in _data if _[2] == 1]
+  _y = [_[1] for _ in _data if _[2] == 1]
+
+  _cor = scipy.stats.spearmanr(_x, _y)[0]
+  _con = "1" if _cor > 0 else "-1"
+
+  _gbm = lightgbm.LGBMRegressor(num_leaves = 100, min_child_samples = 3, n_estimators = 1,
+                                random_state = 1, monotone_constraints = _con)
+  _gbm.fit(numpy.reshape(_x, [-1, 1]), _y)
+
+  _f = numpy.abs(_gbm.predict(numpy.reshape(_x, [-1, 1])))
+
+  _l1 = sorted(list(zip(_f, _x, _y)), key = lambda x: x[0])
+
+  _l2 = [[l for l in _l1 if l[0] == f] for f in sorted(set(_f))]
+
+  _l3 = [[*set(_[0] for _ in l),
+          max(_[1] for _ in l),
+          numpy.mean([_[2] for _ in l]),
+          sum(_[2] for _ in l)] for l in _l2]
+
+  _c = sorted([_[1] for _ in [l for l in _l3 if l[2] < 1 and l[2] > 0 and l[3] > 1]])
+  _p = _c[1:-1] if len(_c) > 2 else _c[:-1]
+    
+  _l4 = sorted(manual_bin(_x, _y, _p), key = lambda x: x["bads"] / x["freq"])
+
+  if len([_ for _ in _data if _[2] == 0]) > 0:
+    _m1 = miss_bin([_[1] for _ in _data if _[2] == 0])
+    if _m1["bads"] == 0:
+      for _ in ['freq', 'miss', 'bads']:
+        _l4[0][_]  = _l4[0][_]  + _m1[_]
+    elif _m1["freq"] == _m1["bads"]:
+      for _ in ['freq', 'miss', 'bads']:
+        _l4[len(_l4) - 1][_]  = _l4[len(_l4) - 1][_]  + _m1[_]
+    else:
+      _l4 = [_m1] + _l4
+
+  _l5 = sorted([{**_,
+                 "rate": round(_["bads"] / _["freq"], 4),
+                 "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
+                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
+                               numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
+                } for _ in _l4], key = lambda x: x["bin"])
+
+  for _ in _l5:
+    if _["bin"] == 0:
+      _["rule"] = "numpy.isnan($X$)"
+    elif _["bin"] == len(_p) + 1:
+      if _["miss"] == 0:
+        _["rule"] = "$X$ > " + str(_p[-1])
+      else:
+        _["rule"] = "($X$ > " + str(_p[-1]) + ") or numpy.isnan($X$)"
+    elif _["bin"] == 1:
+      if _["miss"] == 0:
+        _["rule"] = "$X$ <= " + str(_p[0])
+      else:
+        _["rule"] = "($X$ <= " + str(_p[0]) + ") or numpy.isnan($X$)"
+    else:
+        _["rule"] = "($X$ > " + str(_p[_["bin"] - 2]) + ") and ($X$ <= " + str(_p[_["bin"] - 1]) + ")"
+
+  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "rule"]
+
+  return({"cut": _p, "tbl": [{k: _[k] for k in _sel} for _ in _l5]})
