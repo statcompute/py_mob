@@ -3,8 +3,7 @@
 import numpy, scipy.stats, sklearn.isotonic, sklearn.cluster, lightgbm, tabulate
 
 
-###################################################################################################
-
+########## 01. cal_woe() ########## 
 
 def cal_woe(x, bin):
   """
@@ -53,8 +52,7 @@ def cal_woe(x, bin):
   return(list(dict(zip(_key, _[1:])) for _ in sorted(_l3, key = lambda x: x[0])))
 
 
-###################################################################################################
-
+########## 02. summ_bin() ########## 
 
 def summ_bin(x):
   """
@@ -69,15 +67,15 @@ def summ_bin(x):
 
   Example:
     summ_bin(iso_bin(ltv, bad))
-
-    # {'bad rate': 0.2049, 'iv': 0.18, 'ks': 16.88}
+    # {'sample size': 5837, 'bad rate': 0.2049, 'iv': 0.0876, 'ks': 14.71, 'missing': 0.0}
   """
- 
+
   _r1 = round(sum([_['bads'] for _ in x['tbl']]) / sum([_['freq'] for _ in x['tbl']]), 4)
   _r2 = round(sum([_['iv'] for _ in x['tbl']]), 4)
 
   _freq = sum([_['freq'] for _ in x['tbl']])
   _bads = sum([_['bads'] for _ in x['tbl']])
+  _miss = sum([_['miss'] for _ in x['tbl']])
 
   cumsum = lambda x: [sum([_ for _ in x][0:(i+1)]) for i in range(len(x))]
 
@@ -85,11 +83,12 @@ def summ_bin(x):
   _cumg = cumsum([(_['freq'] - _['bads']) / (_freq - _bads) for _ in x['tbl']])
   _r3 = round(max([numpy.abs(_[0] - _[1]) for _ in zip(_cumb, _cumg)]) * 100, 2)
 
-  return({"bad rate": _r1, "iv": _r2, "ks": _r3})
+  _r4 = round(_miss / _freq, 4)
+
+  return({"sample size": _freq, "bad rate": _r1, "iv": _r2, "ks": _r3, "missing": _r4})
 
 
-###################################################################################################
-
+########## 03. view_bin() ########## 
 
 def view_bin(x):
   """
@@ -119,12 +118,12 @@ def view_bin(x):
 
   _tbl = [{**(lambda v: {k: v[k] for k in _sel})(_), "rule": _["rule"].ljust(50)} for _ in x["tbl"]]
 
-  print(tabulate.tabulate(_tbl, headers = "keys", tablefmt = "github", colalign = ["center"] + ["right"] * 5 + ["center"] * 2,
-                          floatfmt = (".0f", ".0f", ".0f", ".0f", ".4f", ".4f", ".4f")))  
+  print(tabulate.tabulate(_tbl, headers = "keys", tablefmt = "github", 
+                          colalign = ["center"] + ["right"] * 5 + ["center"] * 2,
+                          floatfmt = (".0f", ".0f", ".0f", ".0f", ".4f", ".4f", ".4f")))
 
 
-###################################################################################################
-
+########## 04. qcut() ##########
 
 def qcut(x, n):
   """
@@ -149,8 +148,7 @@ def qcut(x, n):
   return([_ for _ in _c])
 
 
-###################################################################################################
-
+########## 05. manual_bin() ##########
 
 def manual_bin(x, y, cuts):
   """
@@ -197,8 +195,7 @@ def manual_bin(x, y, cuts):
                 key = lambda x: x["bin"]))
 
 
-###################################################################################################
-
+########## 06. miss_bin() ##########
 
 def miss_bin(y):
   """
@@ -216,8 +213,43 @@ def miss_bin(y):
           "bads": sum([_ for _ in y]), "minx": numpy.nan, "maxx": numpy.nan})
 
 
-###################################################################################################
+########## 07. gen_rule() ##########
 
+def gen_rule(tbl, pts):
+  """
+  The function generates binning rules based on the binning outcome table and a list of cut points
+  and is an utility function that is not supposed to be called directly by users.
+
+  Parameters:
+    tbl : A intermediate table of the binning outcome within each binning function
+    pts : A list cut points for the binning
+
+  Returns:
+    A list of dictionaries with binning rules 
+  """
+
+  for _ in tbl:
+    if _["bin"] == 0:
+      _["rule"] = "numpy.isnan($X$)"
+    elif _["bin"] == len(pts) + 1:
+      if _["miss"] == 0:
+        _["rule"] = "$X$ > " + str(pts[-1])
+      else:
+        _["rule"] = "($X$ > " + str(pts[-1]) + ") or numpy.isnan($X$)"
+    elif _["bin"] == 1:
+      if _["miss"] == 0:
+        _["rule"] = "$X$ <= " + str(pts[0])
+      else:
+        _["rule"] = "($X$ <= " + str(pts[0]) + ") or numpy.isnan($X$)"
+    else:
+        _["rule"] = "($X$ > " + str(pts[_["bin"] - 2]) + ") and ($X$ <= " + str(pts[_["bin"] - 1]) + ")"
+
+  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "rule"]
+
+  return([{k: _[k] for k in _sel} for _ in tbl])
+
+
+########## 08. qtl_bin() ##########
 
 def qtl_bin(x, y):
   """
@@ -225,20 +257,20 @@ def qtl_bin(x, y):
   to derive the weight of evidence transformaton (WoE) and information values.
 
   Parameters:
-    x : A numeric vector to discretize. It is a list, 1-D numpy array, or pandas series.
+    x : A numeric vector to discretize. It can be a list, 1-D numpy array, or pandas series.
     y : A numeric vector with binary values of 0/1 and with the same length of x.
-        It is a list, 1-D numpy array, or pandas series.
+        It can be a list, 1-D numpy array, or pandas series.
 
   Returns:
     A dictionary with two keys:
       "cut" : A numeric vector with cut points applied to the x vector.
-      "tbl" : A list of dictionaries summarizing the binning outcome. 
+      "tbl" : A list of dictionaries summarizing the binning outcome.
 
   Example:
     qtl_bin(derog, bad)["cut"]
     #  [0.0, 1.0, 3.0]
 
-    view_bin(qtl_bin(derog, bad))
+    view_bin(qtl_bin(derog, bad)) 
 
     |   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule                         |
     |-------|--------|--------|--------|--------|---------|--------|------------------------------|
@@ -267,17 +299,17 @@ def qtl_bin(x, y):
           scipy.stats.spearmanr([_["bin"] for _ in l[1]], [_["bads"] / _["freq"] for _ in l[1]])[0]
          ] for l in _l1]
 
-  _l3 = [l[0] for l in sorted(_l2, key = lambda x: -len(x[0])) 
+  _l3 = [l[0] for l in sorted(_l2, key = lambda x: -len(x[0]))
          if numpy.abs(round(l[3], 8)) == 1 and round(l[1], 8) > 0 and round(l[2], 8) < 1][0]
 
   _l4 = sorted(*[l[1] for l in _l1 if l[0] == _l3], key = lambda x: x["bads"] / x["freq"])
 
   if len([_ for _ in _data if _[2] == 0]) > 0:
     _m1 = miss_bin([_[1] for _ in _data if _[2] == 0])
-    if _m1["bads"] == 0: 
+    if _m1["bads"] == 0:
       for _ in ['freq', 'miss', 'bads']:
-        _l4[0][_]  = _l4[0][_]  + _m1[_] 
-    elif _m1["freq"] == _m1["bads"]: 
+        _l4[0][_]  = _l4[0][_]  + _m1[_]
+    elif _m1["freq"] == _m1["bads"]:
       for _ in ['freq', 'miss', 'bads']:
         _l4[-1][_]  = _l4[-1][_]  + _m1[_]
     else:
@@ -286,33 +318,14 @@ def qtl_bin(x, y):
   _l5 = sorted([{**_, 
                  "rate": round(_["bads"] / _["freq"], 4),
                  "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
-                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) * 
+                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
                                numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
                 } for _ in _l4], key = lambda x: x["bin"])
 
-  for _ in _l5:
-    if _["bin"] == 0:
-      _["rule"] = "numpy.isnan($X$)"
-    elif _["bin"] == len(_l3) + 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ > " + str(_l3[-1])
-      else:
-        _["rule"] = "($X$ > " + str(_l3[-1]) + ") or numpy.isnan($X$)"
-    elif _["bin"] == 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ <= " + str(_l3[0])
-      else:
-        _["rule"] = "($X$ <= " + str(_l3[0]) + ") or numpy.isnan($X$)"
-    else:
-        _["rule"] = "($X$ > " + str(_l3[_["bin"] - 2]) + ") and ($X$ <= " + str(_l3[_["bin"] - 1]) + ")"
+  return({"cut": _l3, "tbl": gen_rule(_l5, _l3)})
 
-  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "rule"]
 
-  return({"cut": _l3, "tbl": [{k: _[k] for k in _sel} for _ in _l5]})
-  
-
-##################################################################################################
-
+########## 09. bad_bin() ##########
 
 def bad_bin(x, y):
   """
@@ -362,17 +375,17 @@ def bad_bin(x, y):
           scipy.stats.spearmanr([_["bin"] for _ in l[1]], [_["bads"] / _["freq"] for _ in l[1]])[0]
          ] for l in _l1]
 
-  _l3 = [l[0] for l in sorted(_l2, key = lambda x: -len(x[0])) 
+  _l3 = [l[0] for l in sorted(_l2, key = lambda x: -len(x[0]))
          if numpy.abs(round(l[3], 8)) == 1 and round(l[1], 8) > 0 and round(l[2], 8) < 1][0]
 
   _l4 = sorted(*[l[1] for l in _l1 if l[0] == _l3], key = lambda x: x["bads"] / x["freq"])
 
   if len([_ for _ in _data if _[2] == 0]) > 0:
     _m1 = miss_bin([_[1] for _ in _data if _[2] == 0])
-    if _m1["bads"] == 0: 
+    if _m1["bads"] == 0:
       for _ in ['freq', 'miss', 'bads']:
-        _l4[0][_]  = _l4[0][_]  + _m1[_] 
-    elif _m1["freq"] == _m1["bads"]: 
+        _l4[0][_]  = _l4[0][_]  + _m1[_]
+    elif _m1["freq"] == _m1["bads"]:
       for _ in ['freq', 'miss', 'bads']:
         _l4[-1][_]  = _l4[-1][_]  + _m1[_]
     else:
@@ -381,33 +394,14 @@ def bad_bin(x, y):
   _l5 = sorted([{**_, 
                  "rate": round(_["bads"] / _["freq"], 4),
                  "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
-                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) * 
+                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
                                numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
                 } for _ in _l4], key = lambda x: x["bin"])
 
-  for _ in _l5:
-    if _["bin"] == 0:
-      _["rule"] = "numpy.isnan($X$)"
-    elif _["bin"] == len(_l3) + 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ > " + str(_l3[-1])
-      else:
-        _["rule"] = "($X$ > " + str(_l3[-1]) + ") or numpy.isnan($X$)"
-    elif _["bin"] == 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ <= " + str(_l3[0])
-      else:
-        _["rule"] = "($X$ <= " + str(_l3[0]) + ") or numpy.isnan($X$)"
-    else:
-        _["rule"] = "($X$ > " + str(_l3[_["bin"] - 2]) + ") and ($X$ <= " + str(_l3[_["bin"] - 1]) + ")"
+  return({"cut": _l3, "tbl": gen_rule(_l5, _l3)})
 
-  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "rule"]
 
-  return({"cut": _l3, "tbl": [{k: _[k] for k in _sel} for _ in _l5]})
-  
-
-##################################################################################################
-
+########## 10. iso_bin() ##########
 
 def iso_bin(x, y):
   """
@@ -415,7 +409,7 @@ def iso_bin(x, y):
   the y vector to derive the weight of evidence transformaton (WoE) and information values.
 
   Parameters:
-    x : A numeric vector to discretize. It is a list, 1-D numpy array, or pandas series.
+    x : A numeric vector to discretize. It is a list, 1-D numpy array, or pandas series. 
     y : A numeric vector with binary values of 0/1 and with the same length of x.
         It is a list, 1-D numpy array, or pandas series.
 
@@ -453,57 +447,38 @@ def iso_bin(x, y):
 
   _l1 = sorted(list(zip(_f, _x, _y)), key = lambda x: x[0])
   _l2 = [[l for l in _l1 if l[0] == f] for f in sorted(set(_f))]
-  _l3 = [[*set(_[0] for _ in l), 
-          max(_[1] for _ in l), 
+  _l3 = [[*set(_[0] for _ in l),
+          max(_[1] for _ in l),
           numpy.mean([_[2] for _ in l]),
           sum(_[2] for _ in l)] for l in _l2]
-  
+
   _c = sorted([_[1] for _ in [l for l in _l3 if l[2] < 1 and l[2] > 0 and l[3] > 1]])
   _p = _c[1:-1] if len(_c) > 2 else _c[:-1]
-
+    
   _l4 = sorted(manual_bin(_x, _y, _p), key = lambda x: x["bads"] / x["freq"])
 
   if len([_ for _ in _data if _[2] == 0]) > 0:
     _m1 = miss_bin([_[1] for _ in _data if _[2] == 0])
-    if _m1["bads"] == 0: 
+    if _m1["bads"] == 0:
       for _ in ['freq', 'miss', 'bads']:
-        _l4[0][_]  = _l4[0][_]  + _m1[_] 
-    elif _m1["freq"] == _m1["bads"]: 
+        _l4[0][_]  = _l4[0][_]  + _m1[_]
+    elif _m1["freq"] == _m1["bads"]:
       for _ in ['freq', 'miss', 'bads']:
         _l4[len(_l4) - 1][_]  = _l4[len(_l4) - 1][_]  + _m1[_]
     else:
-      _l4 = [_m1] + _l4 
+      _l4 = [_m1] + _l4
 
-  _l5 = sorted([{**_, 
+  _l5 = sorted([{**_,
                  "rate": round(_["bads"] / _["freq"], 4),
                  "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
-                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) * 
-                               numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)} 
-                for _ in _l4], key = lambda x: x["bin"])
+                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
+                               numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
+                } for _ in _l4], key = lambda x: x["bin"])
 
-  for _ in _l5:
-    if _["bin"] == 0:
-      _["rule"] = "numpy.isnan($X$)"
-    elif _["bin"] == len(_p) + 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ > " + str(_p[-1])
-      else:
-        _["rule"] = "($X$ > " + str(_p[-1]) + ") or numpy.isnan($X$)"
-    elif _["bin"] == 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ <= " + str(_p[0])
-      else:
-        _["rule"] = "($X$ <= " + str(_p[0]) + ") or numpy.isnan($X$)"
-    else:
-        _["rule"] = "($X$ > " + str(_p[_["bin"] - 2]) + ") and ($X$ <= " + str(_p[_["bin"] - 1]) + ")"
-
-  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "rule"]
-
-  return({"cut": _p, "tbl": [{k: _[k] for k in _sel} for _ in _l5]})
+  return({"cut": _p, "tbl": gen_rule(_l5, _p)})
 
 
-##################################################################################################
-
+########## 11. rng_bin() ##########
 
 def rng_bin(x, y):
   """
@@ -576,29 +551,10 @@ def rng_bin(x, y):
                                numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
                 } for _ in _l4], key = lambda x: x["bin"])
 
-  for _ in _l5:
-    if _["bin"] == 0:
-      _["rule"] = "numpy.isnan($X$)"
-    elif _["bin"] == len(_l3) + 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ > " + str(_l3[-1])
-      else:
-        _["rule"] = "($X$ > " + str(_l3[-1]) + ") or numpy.isnan($X$)"
-    elif _["bin"] == 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ <= " + str(_l3[0])
-      else:
-        _["rule"] = "($X$ <= " + str(_l3[0]) + ") or numpy.isnan($X$)"
-    else:
-        _["rule"] = "($X$ > " + str(_l3[_["bin"] - 2]) + ") and ($X$ <= " + str(_l3[_["bin"] - 1]) + ")"
-
-  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "rule"]
-
-  return({"cut": _l3, "tbl": [{k: _[k] for k in _sel} for _ in _l5]})
+  return({"cut": _l3, "tbl": gen_rule(_l5, _l3)})
 
 
-##################################################################################################
-
+########## 12. kmn_bin() ##########
 
 def kmn_bin(x, y):
   """
@@ -638,7 +594,7 @@ def kmn_bin(x, y):
   _y = [_[1] for _ in _data if _[2] == 1]
   _n = numpy.arange(2, max(3, min(20, len(numpy.unique(_x)) - 1)))
 
-  _c1 = [sklearn.cluster.KMeans(n_clusters = _).fit(numpy.reshape(_x, [-1, 1])).labels_ for _ in _n]
+  _c1 = [sklearn.cluster.KMeans(n_clusters = _, random_state = 1).fit(numpy.reshape(_x, [-1, 1])).labels_ for _ in _n]
   _c2 = [sorted(_l, key = lambda x: x[0]) for _l in [list(zip(_, _x)) for _ in _c1]]
 
   group = lambda x: [[_l for _l in x if _l[0] == _k] for _k in set([_[0] for _ in x])]
@@ -681,29 +637,10 @@ def kmn_bin(x, y):
                                numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
                 } for _ in _l4], key = lambda x: x["bin"])
 
-  for _ in _l5:
-    if _["bin"] == 0:
-      _["rule"] = "numpy.isnan($X$)"
-    elif _["bin"] == len(_l3) + 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ > " + str(_l3[-1])
-      else:
-        _["rule"] = "($X$ > " + str(_l3[-1]) + ") or numpy.isnan($X$)"
-    elif _["bin"] == 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ <= " + str(_l3[0])
-      else:
-        _["rule"] = "($X$ <= " + str(_l3[0]) + ") or numpy.isnan($X$)"
-    else:
-        _["rule"] = "($X$ > " + str(_l3[_["bin"] - 2]) + ") and ($X$ <= " + str(_l3[_["bin"] - 1]) + ")"
-
-  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "rule"]
-
-  return({"cut": _l3, "tbl": [{k: _[k] for k in _sel} for _ in _l5]})
+  return({"cut": _l3, "tbl": gen_rule(_l5, _l3)})
 
 
-##################################################################################################
-
+########## 13. gbm_bin() ########## 
 
 def gbm_bin(x, y):
   """
@@ -785,22 +722,4 @@ def gbm_bin(x, y):
                                numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
                 } for _ in _l4], key = lambda x: x["bin"])
 
-  for _ in _l5:
-    if _["bin"] == 0:
-      _["rule"] = "numpy.isnan($X$)"
-    elif _["bin"] == len(_p) + 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ > " + str(_p[-1])
-      else:
-        _["rule"] = "($X$ > " + str(_p[-1]) + ") or numpy.isnan($X$)"
-    elif _["bin"] == 1:
-      if _["miss"] == 0:
-        _["rule"] = "$X$ <= " + str(_p[0])
-      else:
-        _["rule"] = "($X$ <= " + str(_p[0]) + ") or numpy.isnan($X$)"
-    else:
-        _["rule"] = "($X$ > " + str(_p[_["bin"] - 2]) + ") and ($X$ <= " + str(_p[_["bin"] - 1]) + ")"
-
-  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "rule"]
-
-  return({"cut": _p, "tbl": [{k: _[k] for k in _sel} for _ in _l5]})
+  return({"cut": _p, "tbl": gen_rule(_l5, _p)})
