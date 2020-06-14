@@ -77,12 +77,7 @@ def summ_bin(x):
   _bads = sum([_['bads'] for _ in x['tbl']])
   _miss = sum([_['miss'] for _ in x['tbl']])
 
-  cumsum = lambda x: [sum([_ for _ in x][0:(i+1)]) for i in range(len(x))]
-
-  _cumb = cumsum([_['bads'] / _bads for _ in x['tbl']])
-  _cumg = cumsum([(_['freq'] - _['bads']) / (_freq - _bads) for _ in x['tbl']])
-  _r3 = round(max([numpy.abs(_[0] - _[1]) for _ in zip(_cumb, _cumg)]) * 100, 2)
-
+  _r3 = max(_["ks"] for _ in x["tbl"])
   _r4 = round(_miss / _freq, 4)
 
   return({"sample size": _freq, "bad rate": _r1, "iv": _r2, "ks": _r3, "missing": _r4})
@@ -101,26 +96,28 @@ def view_bin(x):
     None
 
   Example:
-    view_bin(iso_bin(ltv, bad))
+    view_bin(qtl_bin(df.ltv, df.bad))
 
-    |   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule                         |
-    |-------|--------|--------|--------|--------|---------|--------|------------------------------|
-    |     0 |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 | numpy.isnan($X$)             |
-    |     1 |   2850 |      0 |    367 | 0.1288 | -0.5559 | 0.1268 | $X$ <= 0.0                   |
-    |     2 |    891 |      0 |    193 | 0.2166 |  0.0704 | 0.0008 | ($X$ > 0.0) and ($X$ <= 1.0) |
-    |     3 |    810 |      0 |    207 | 0.2556 |  0.2867 | 0.0124 | ($X$ > 1.0) and ($X$ <= 3.0) |
-    |     4 |   1073 |      0 |    359 | 0.3346 |  0.6684 | 0.0978 | $X$ > 3.0                    |
+    |  bin  |   freq |   miss |   bads |   rate |     woe |     iv |    ks |                  rule              |
+    |-------|--------|--------|--------|--------|---------|--------|-------|------------------------------------|
+    |   1   |    884 |      0 |     88 | 0.0995 | -0.8463 | 0.0829 |  9.79 | $X$ <= 83.0                        |
+    |   2   |    905 |      0 |    137 | 0.1514 | -0.3679 | 0.0187 | 14.89 | $X$ > 83.0 and $X$ <= 92.0         |
+    |   3   |    851 |      0 |    175 | 0.2056 |  0.0045 | 0.0000 | 14.82 | $X$ > 92.0 and $X$ <= 98.0         |
+    |   4   |    813 |      0 |    172 | 0.2116 |  0.0404 | 0.0002 | 14.25 | $X$ > 98.0 and $X$ <= 102.0        |
+    |   5   |    821 |      0 |    194 | 0.2363 |  0.1829 | 0.0050 | 11.54 | $X$ > 102.0 and $X$ <= 108.0       |
+    |   6   |    769 |      0 |    194 | 0.2523 |  0.2694 | 0.0103 |  7.71 | $X$ > 108.0 and $X$ <= 116.0       |
+    |   7   |    794 |      1 |    236 | 0.2972 |  0.4954 | 0.0382 |  0.00 | $X$ > 116.0 or numpy.isnan($X$)    |
   """
 
   tabulate.PRESERVE_WHITESPACE = True
 
-  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv"]
+  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "ks"]
 
-  _tbl = [{**(lambda v: {k: v[k] for k in _sel})(_), "rule": _["rule"].ljust(50)} for _ in x["tbl"]]
+  _tbl = [{**(lambda v: {k: v[k] for k in _sel})(_), "rule": _["rule"].ljust(45)} for _ in x["tbl"]]
 
   print(tabulate.tabulate(_tbl, headers = "keys", tablefmt = "github", 
-                          colalign = ["center"] + ["right"] * 5 + ["center"] * 2,
-                          floatfmt = (".0f", ".0f", ".0f", ".0f", ".4f", ".4f", ".4f")))
+                          colalign = ["center"] + ["right"] * 7 + ["center"],
+                          floatfmt = (".0f", ".0f", ".0f", ".0f", ".4f", ".4f", ".4f", ".2f")))
 
 
 ########## 04. qcut() ##########
@@ -235,21 +232,54 @@ def gen_rule(tbl, pts):
       if _["miss"] == 0:
         _["rule"] = "$X$ > " + str(pts[-1])
       else:
-        _["rule"] = "($X$ > " + str(pts[-1]) + ") or numpy.isnan($X$)"
+        _["rule"] = "$X$ > " + str(pts[-1]) + " or numpy.isnan($X$)"
     elif _["bin"] == 1:
       if _["miss"] == 0:
         _["rule"] = "$X$ <= " + str(pts[0])
       else:
-        _["rule"] = "($X$ <= " + str(pts[0]) + ") or numpy.isnan($X$)"
+        _["rule"] = "$X$ <= " + str(pts[0]) + " or numpy.isnan($X$)"
     else:
-        _["rule"] = "($X$ > " + str(pts[_["bin"] - 2]) + ") and ($X$ <= " + str(pts[_["bin"] - 1]) + ")"
+        _["rule"] = "$X$ > " + str(pts[_["bin"] - 2]) + " and $X$ <= " + str(pts[_["bin"] - 1])
 
-  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "rule"]
+  _sel = ["bin", "freq", "miss", "bads", "rate", "woe", "iv", "ks", "rule"]
 
   return([{k: _[k] for k in _sel} for _ in tbl])
 
 
-########## 08. qtl_bin() ##########
+########## 08. gen_woe() ##########
+
+def gen_woe(x):
+  """
+  The function calculates weight of evidence and information value based on the binning outcome within each 
+  binning function and is an utility function that is not supposed to be called directly by users.
+
+  Parameters:
+    x : A list of dictionaries for the binning outcome.
+
+  Returns:
+    A list of dictionaries with additional keys to the input.
+  """
+
+  _freq = sum(_["freq"] for _ in x)
+  _bads = sum(_["bads"] for _ in x)
+
+  _l1 = sorted([{**_, 
+                 "rate": round(_["bads"] / _["freq"], 4),
+                 "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
+                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
+                               numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
+                } for _ in x], key = lambda _x: _x["bin"])
+
+  cumsum = lambda x: [sum([_ for _ in x][0:(i+1)]) for i in range(len(x))]
+
+  _cumb = cumsum([_['bads'] / _bads for _ in _l1])
+  _cumg = cumsum([(_['freq'] - _['bads']) / (_freq - _bads) for _ in _l1])
+  _ks = [round(numpy.abs(_[0] - _[1]) * 100, 2) for _ in zip(_cumb, _cumg)]
+  
+  return([{**_1, "ks": _2} for _1, _2 in zip(_l1, _ks)])
+
+
+########## 09. qtl_bin() ##########
 
 def qtl_bin(x, y):
   """
@@ -282,8 +312,6 @@ def qtl_bin(x, y):
   """
 
   _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
-  _freq = len(_data)
-  _bads = sum([_[1] for _ in _data])
 
   _x = [_[0] for _ in _data if _[2] == 1]
   _y = [_[1] for _ in _data if _[2] == 1]
@@ -315,17 +343,12 @@ def qtl_bin(x, y):
     else:
       _l4.append(_m1)
 
-  _l5 = sorted([{**_, 
-                 "rate": round(_["bads"] / _["freq"], 4),
-                 "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
-                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
-                               numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
-                } for _ in _l4], key = lambda x: x["bin"])
+  _l5 = gen_woe(_l4)
 
   return({"cut": _l3, "tbl": gen_rule(_l5, _l3)})
 
 
-########## 09. bad_bin() ##########
+########## 10. bad_bin() ##########
 
 def bad_bin(x, y):
   """
@@ -358,8 +381,6 @@ def bad_bin(x, y):
   """
 
   _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
-  _freq = len(_data)
-  _bads = sum([_[1] for _ in _data])
 
   _x = [_[0] for _ in _data if _[2] == 1]
   _y = [_[1] for _ in _data if _[2] == 1]
@@ -391,17 +412,12 @@ def bad_bin(x, y):
     else:
       _l4.append(_m1)
 
-  _l5 = sorted([{**_, 
-                 "rate": round(_["bads"] / _["freq"], 4),
-                 "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
-                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
-                               numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
-                } for _ in _l4], key = lambda x: x["bin"])
+  _l5 = gen_woe(_l4)
 
   return({"cut": _l3, "tbl": gen_rule(_l5, _l3)})
 
 
-########## 10. iso_bin() ##########
+########## 11. iso_bin() ##########
 
 def iso_bin(x, y):
   """
@@ -468,17 +484,12 @@ def iso_bin(x, y):
     else:
       _l4 = [_m1] + _l4
 
-  _l5 = sorted([{**_,
-                 "rate": round(_["bads"] / _["freq"], 4),
-                 "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
-                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
-                               numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
-                } for _ in _l4], key = lambda x: x["bin"])
+  _l5 = gen_woe(_l4)
 
   return({"cut": _p, "tbl": gen_rule(_l5, _p)})
 
 
-########## 11. rng_bin() ##########
+########## 12. rng_bin() ##########
 
 def rng_bin(x, y):
   """
@@ -511,8 +522,6 @@ def rng_bin(x, y):
   """
 
   _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
-  _freq = len(_data)
-  _bads = sum([_[1] for _ in _data])
 
   _x = [_[0] for _ in _data if _[2] == 1]
   _y = [_[1] for _ in _data if _[2] == 1]
@@ -544,17 +553,12 @@ def rng_bin(x, y):
     else:
       _l4.append(_m1)
 
-  _l5 = sorted([{**_, 
-                 "rate": round(_["bads"] / _["freq"], 4),
-                 "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
-                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
-                               numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
-                } for _ in _l4], key = lambda x: x["bin"])
+  _l5 = gen_woe(_l4)
 
   return({"cut": _l3, "tbl": gen_rule(_l5, _l3)})
 
 
-########## 12. kmn_bin() ##########
+########## 13. kmn_bin() ##########
 
 def kmn_bin(x, y):
   """
@@ -587,8 +591,6 @@ def kmn_bin(x, y):
   """
 
   _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
-  _freq = len(_data)
-  _bads = sum([_[1] for _ in _data])
 
   _x = [_[0] for _ in _data if _[2] == 1]
   _y = [_[1] for _ in _data if _[2] == 1]
@@ -630,17 +632,12 @@ def kmn_bin(x, y):
     else:
       _l4.append(_m1)
 
-  _l5 = sorted([{**_, 
-                 "rate": round(_["bads"] / _["freq"], 4),
-                 "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
-                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
-                               numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
-                } for _ in _l4], key = lambda x: x["bin"])
+  _l5 = gen_woe(_l4)
 
   return({"cut": _l3, "tbl": gen_rule(_l5, _l3)})
 
 
-########## 13. gbm_bin() ########## 
+########## 14. gbm_bin() ########## 
 
 def gbm_bin(x, y):
   """
@@ -675,8 +672,6 @@ def gbm_bin(x, y):
   """
 
   _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
-  _freq = len(_data)
-  _bads = sum([_[1] for _ in _data])
 
   _x = [_[0] for _ in _data if _[2] == 1]
   _y = [_[1] for _ in _data if _[2] == 1]
@@ -715,11 +710,6 @@ def gbm_bin(x, y):
     else:
       _l4 = [_m1] + _l4
 
-  _l5 = sorted([{**_,
-                 "rate": round(_["bads"] / _["freq"], 4),
-                 "woe" : round(numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4),
-                 "iv"  : round((_["bads"] / _bads - (_["freq"] - _["bads"]) / (_freq - _bads)) *
-                               numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
-                } for _ in _l4], key = lambda x: x["bin"])
+  _l5 = gen_woe(_l4)
 
   return({"cut": _p, "tbl": gen_rule(_l5, _p)})
