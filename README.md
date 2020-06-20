@@ -11,7 +11,7 @@ As an attempt to mimic the mob R package (https://CRAN.R-project.org/package=mob
 
 Different from other python packages for the same purpose, the py_mob package is very lightweight and the underlying computation is driven by the built-in python list or the numpy array. Functions would return lists of dictionaries, which can be easily converted to other data structures, such as pandas.DataFrame or astropy.table. 
 
-Currently, five different monotonic binning algorithms are implemented, namely qtl_bin(), bad_bin(), iso_bin(), kmn_bin(), and rng_bin(). For details, please see core functions below. 
+Currently, six different monotonic binning algorithms are implemented, namely qtl_bin(), bad_bin(), iso_bin(), kmn_bin(), gbm_bin(), and rng_bin(). For details, please see core functions below. 
 
 #### Package Dependencies
 
@@ -34,6 +34,7 @@ py_mob
    |-- iso_bin()  : A discretization algorthm driven by the isotonic regression between X and Y.
    |-- rng_bin()  : A revised iterative discretization based on the equal-width range of X.
    |-- kmn_bin()  : A discretization algorthm based on the kmean clustering of X.
+   |-- gbm_bin()  : A discretization algorthm based on the gradient boosting machine
    |-- summ_bin() : Generates the statistical summary for the binning outcome.
    |-- view_bin() : Displays the binning outcome in a tabular form.
    `-- cal_woe()  : Applies the WoE transformation to a numeric vector based on the binning outcome.
