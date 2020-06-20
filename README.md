@@ -11,7 +11,7 @@ As an attempt to mimic the mob R package (https://CRAN.R-project.org/package=mob
 
 Different from other python packages for the same purpose, the py\_mob package is very lightweight and the underlying computation is driven by the built-in python list or the numpy array. Functions would return lists of dictionaries, which can be easily converted to other data structures, such as pandas.DataFrame or astropy.table. 
 
-What's more, six different monotonic binning algorithms are implemented, namely qtl\_bin(), bad\_bin(), iso\_bin(), rng\_bin(), kmn\_bin(), and gbm\_bin(), that would provide different predictability and cardinality. For details, please see https://github.com/statcompute/py_mob.
+What's more, six different monotonic binning algorithms are implemented, namely qtl\_bin(), bad\_bin(), iso\_bin(), rng\_bin(), kmn\_bin(), and gbm\_bin(), that would provide different predictability and cardinality. 
 
 People without the background knowledge in the consumer risk modeling might be wondering why the monotonic binning and thereafter the WoE transformation are important. Below are a couple reasons based on my experience. They are perfectly generalizable in other use cases of logistic regression with binary outcomes. 
 1. Because the WoE is a piecewise transformation based on the data discretization, all missing values would fall into a standalone category either by itself or to be combined with the neighbor with a similar bad rate. As a result, the special treatment for missing values is not necessary.
