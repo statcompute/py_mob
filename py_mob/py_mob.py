@@ -7,10 +7,12 @@ import numpy, scipy.stats, sklearn.isotonic, sklearn.cluster, lightgbm, tabulate
 
 def cal_woe(x, bin):
   """
-  The function applies the woe transformation to a numeric vector based on the binning outcome.
+  The function applies the woe transformation to a numeric vector based on 
+  the binning outcome.
 
   Parameters:
-    x   : A numeric vector, which can be a list, 1-D numpy array, or pandas series
+    x   : A numeric vector, which can be a list, 1-D numpy array, or pandas 
+          series
     bin : An object containing the binning outcome.
 
   Returns:
@@ -56,8 +58,8 @@ def cal_woe(x, bin):
 
 def summ_bin(x):
   """
-  The function summarizes the binning outcome generated from a binning function, e.g. qtl_bin() or
-  iso_bin().
+  The function summarizes the binning outcome generated from a binning function, 
+  e.g. qtl_bin() or iso_bin().
 
   Parameters:
     x: An object containing the binning outcome.
@@ -67,27 +69,28 @@ def summ_bin(x):
 
   Example:
     summ_bin(iso_bin(ltv, bad))
-    # {'sample size': 5837, 'bad rate': 0.2049, 'iv': 0.0876, 'ks': 14.71, 'missing': 0.0}
+    # {'sample size': 5837, 'bad rate': 0.2049, 'iv': 0.185, 'ks': 16.88, 'missing': 0.0002}
   """
 
-  _r1 = round(sum([_['bads'] for _ in x['tbl']]) / sum([_['freq'] for _ in x['tbl']]), 4)
-  _r2 = round(sum([_['iv'] for _ in x['tbl']]), 4)
+  _freq = sum(_['freq'] for _ in x['tbl'])
+  _bads = sum(_['bads'] for _ in x['tbl'])
+  _miss = sum(_['miss'] for _ in x['tbl'])
 
-  _freq = sum([_['freq'] for _ in x['tbl']])
-  _bads = sum([_['bads'] for _ in x['tbl']])
-  _miss = sum([_['miss'] for _ in x['tbl']])
+  _iv = round(sum(_['iv'] for _ in x['tbl']), 4)
+  _ks = round(max(_["ks"] for _ in x["tbl"]), 2)
 
-  _r3 = max(_["ks"] for _ in x["tbl"])
-  _r4 = round(_miss / _freq, 4)
+  _br = round(_bads / _freq, 4)
+  _mr = round(_miss / _freq, 4)
 
-  return({"sample size": _freq, "bad rate": _r1, "iv": _r2, "ks": _r3, "missing": _r4})
+  return({"sample size": _freq, "bad rate": _br, "iv": _iv, "ks": _ks, "missing": _mr})
 
 
 ########## 03. view_bin() ########## 
 
 def view_bin(x):
   """
-  The function shows the binning outcome generated from a binning function, e.g. qtl_bin() or iso_bin().
+  The function displays the binning outcome generated from a binning function, 
+  e.g. qtl_bin() or iso_bin().
 
   Parameters:
     x: An object containing the binning outcome.
@@ -97,16 +100,6 @@ def view_bin(x):
 
   Example:
     view_bin(qtl_bin(df.ltv, df.bad))
-
-    |  bin  |   freq |   miss |   bads |   rate |     woe |     iv |    ks |                  rule              |
-    |-------|--------|--------|--------|--------|---------|--------|-------|------------------------------------|
-    |   1   |    884 |      0 |     88 | 0.0995 | -0.8463 | 0.0829 |  9.79 | $X$ <= 83.0                        |
-    |   2   |    905 |      0 |    137 | 0.1514 | -0.3679 | 0.0187 | 14.89 | $X$ > 83.0 and $X$ <= 92.0         |
-    |   3   |    851 |      0 |    175 | 0.2056 |  0.0045 | 0.0000 | 14.82 | $X$ > 92.0 and $X$ <= 98.0         |
-    |   4   |    813 |      0 |    172 | 0.2116 |  0.0404 | 0.0002 | 14.25 | $X$ > 98.0 and $X$ <= 102.0        |
-    |   5   |    821 |      0 |    194 | 0.2363 |  0.1829 | 0.0050 | 11.54 | $X$ > 102.0 and $X$ <= 108.0       |
-    |   6   |    769 |      0 |    194 | 0.2523 |  0.2694 | 0.0103 |  7.71 | $X$ > 108.0 and $X$ <= 116.0       |
-    |   7   |    794 |      1 |    236 | 0.2972 |  0.4954 | 0.0382 |  0.00 | $X$ > 116.0 or numpy.isnan($X$)    |
   """
 
   tabulate.PRESERVE_WHITESPACE = True
@@ -135,7 +128,6 @@ def qcut(x, n):
 
   Example:
     qcut(range(10), 3)
-
     # [3, 6]
   """
 
@@ -153,18 +145,14 @@ def manual_bin(x, y, cuts):
   based on the discretization result.
 
   Parameters:
-    x    : A numeric vector to discretize without missing values, e.g. numpy.nan or math.nan
-    y    : A numeric vector with binary values of 0/1 and with the same length of x
+    x    : A numeric vector to discretize without missing values, 
+           e.g. numpy.nan or math.nan
+    y    : A numeric vector with binary values of 0/1 and with the same length 
+           of x
     cuts : A list of numeric values as cut points to discretize x.
 
   Returns:
-    A list of dictionaries for the binning outcome with following keys:
-      "bin"  : the binning group
-      "freq" : the number of records in each binning group
-      "miss" : the placeholder for records with missing values of x
-      "bads" : the number of records for y = 1 in each binning group
-      "minx" : the minimum value of x for each binning group
-      "maxx" : the maximum value of x for each binning group
+    A list of dictionaries for the binning outcome. 
 
   Example:
     for x in manual_bin(scr, bad, [650, 700, 750]):
@@ -196,8 +184,8 @@ def manual_bin(x, y, cuts):
 
 def miss_bin(y):
   """
-  The function summarizes the y vector with binary values of 0/1 and is not supposed to be called
-  directly by users.
+  The function summarizes the y vector with binary values of 0/1 and is not 
+  supposed to be called directly by users.
 
   Parameters:
     y : A numeric vector with binary values of 0/1.
@@ -214,11 +202,13 @@ def miss_bin(y):
 
 def gen_rule(tbl, pts):
   """
-  The function generates binning rules based on the binning outcome table and a list of cut points
-  and is an utility function that is not supposed to be called directly by users.
+  The function generates binning rules based on the binning outcome table and
+  a list of cut points and is an utility function that is not supposed to be 
+  called directly by users.
 
   Parameters:
-    tbl : A intermediate table of the binning outcome within each binning function
+    tbl : A intermediate table of the binning outcome within each binning 
+          function
     pts : A list cut points for the binning
 
   Returns:
@@ -250,8 +240,9 @@ def gen_rule(tbl, pts):
 
 def gen_woe(x):
   """
-  The function calculates weight of evidence and information value based on the binning outcome within each 
-  binning function and is an utility function that is not supposed to be called directly by users.
+  The function calculates weight of evidence and information value based on the 
+  binning outcome within each binning function and is an utility function that 
+  is not supposed to be called directly by users.
 
   Parameters:
     x : A list of dictionaries for the binning outcome.
@@ -270,7 +261,7 @@ def gen_woe(x):
                                numpy.log((_["bads"] / _bads) / ((_["freq"] - _["bads"]) / (_freq - _bads))), 4)
                 } for _ in x], key = lambda _x: _x["bin"])
 
-  cumsum = lambda x: [sum([_ for _ in x][0:(i+1)]) for i in range(len(x))]
+  cumsum = lambda x: [sum([_ for _ in x][0:(i + 1)]) for i in range(len(x))]
 
   _cumb = cumsum([_['bads'] / _bads for _ in _l1])
   _cumg = cumsum([(_['freq'] - _['bads']) / (_freq - _bads) for _ in _l1])
@@ -283,13 +274,15 @@ def gen_woe(x):
 
 def qtl_bin(x, y):
   """
-  The function discretizes the x vector based on percentiles and then summarizes over the y vector
-  to derive the weight of evidence transformaton (WoE) and information values.
+  The function discretizes the x vector based on percentiles and summarizes 
+  over the y vector to derive weight of evidence transformaton (WoE) and 
+  information value.
 
   Parameters:
-    x : A numeric vector to discretize. It can be a list, 1-D numpy array, or pandas series.
-    y : A numeric vector with binary values of 0/1 and with the same length of x.
-        It can be a list, 1-D numpy array, or pandas series.
+    x : A numeric vector to discretize. It can be a list, 1-D numpy array, or 
+        pandas series.
+    y : A numeric vector with binary values of 0/1 and with the same length 
+        of x. It can be a list, 1-D numpy array, or pandas series.
 
   Returns:
     A dictionary with two keys:
@@ -302,13 +295,13 @@ def qtl_bin(x, y):
 
     view_bin(qtl_bin(derog, bad)) 
 
-    |   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule                         |
-    |-------|--------|--------|--------|--------|---------|--------|------------------------------|
-    |     0 |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 | numpy.isnan($X$)             |
-    |     1 |   2850 |      0 |    367 | 0.1288 | -0.5559 | 0.1268 | $X$ <= 0.0                   |
-    |     2 |    891 |      0 |    193 | 0.2166 |  0.0704 | 0.0008 | ($X$ > 0.0) and ($X$ <= 1.0) |
-    |     3 |    810 |      0 |    207 | 0.2556 |  0.2867 | 0.0124 | ($X$ > 1.0) and ($X$ <= 3.0) |
-    |     4 |   1073 |      0 |    359 | 0.3346 |  0.6684 | 0.0978 | $X$ > 3.0                    |
+    |  bin  |   freq |   miss |   bads |   rate |     woe |     iv |    ks |                     rule                      |
+    |-------|--------|--------|--------|--------|---------|--------|-------|-----------------------------------------------|
+    |   0   |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 |  2.77 | numpy.isnan($X$)                              |
+    |   1   |   2850 |      0 |    367 | 0.1288 | -0.5559 | 0.1268 | 20.04 | $X$ <= 0.0                                    |
+    |   2   |    891 |      0 |    193 | 0.2166 |  0.0704 | 0.0008 | 18.95 | $X$ > 0.0 and $X$ <= 1.0                      |
+    |   3   |    810 |      0 |    207 | 0.2556 |  0.2867 | 0.0124 | 14.63 | $X$ > 1.0 and $X$ <= 3.0                      |
+    |   4   |   1073 |      0 |    359 | 0.3346 |  0.6684 | 0.0978 |  0.00 | $X$ > 3.0                                     |
   """
 
   _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
@@ -317,7 +310,7 @@ def qtl_bin(x, y):
   _y = [_[1] for _ in _data if _[2] == 1]
 
   _n = numpy.arange(2, max(3, min(50, len(numpy.unique(_x)) - 1)))
-  _p = numpy.unique([qcut(_x, _) for _ in _n])
+  _p = set(tuple(qcut(_x, _)) for _ in _n)
 
   _l1 = [[_, manual_bin(_x, _y, _)] for _ in _p]
 
@@ -352,13 +345,15 @@ def qtl_bin(x, y):
 
 def bad_bin(x, y):
   """
-  The function discretizes the x vector based on percentiles and then summarizes over the y vector
-  with y = 1 to derive the weight of evidence transformaton (WoE) and information values.
+  The function discretizes the x vector based on percentiles and then 
+  summarizes over the y vector with y = 1 to derive the weight of evidence 
+  transformaton (WoE) and information values.
 
   Parameters:
-    x : A numeric vector to discretize. It is a list, 1-D numpy array, or pandas series.
-    y : A numeric vector with binary values of 0/1 and with the same length of x.
-        It is a list, 1-D numpy array, or pandas series.
+    x : A numeric vector to discretize. It is a list, 1-D numpy array, 
+        or pandas series.
+    y : A numeric vector with binary values of 0/1 and with the same length 
+        of x. It is a list, 1-D numpy array, or pandas series.
 
   Returns:
     A dictionary with two keys:
@@ -371,13 +366,13 @@ def bad_bin(x, y):
 
     view_bin(bad_bin(derog, bad))
 
-    |   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule                         |
-    |-------|--------|--------|--------|--------|---------|--------|------------------------------|
-    |     0 |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 | numpy.isnan($X$)             |
-    |     1 |   2850 |      0 |    367 | 0.1288 | -0.5559 | 0.1268 | $X$ <= 0.0                   |
-    |     2 |   1369 |      0 |    314 | 0.2294 |  0.1440 | 0.0051 | ($X$ > 0.0) and ($X$ <= 2.0) |
-    |     3 |    587 |      0 |    176 | 0.2998 |  0.5078 | 0.0298 | ($X$ > 2.0) and ($X$ <= 4.0) |
-    |     4 |    818 |      0 |    269 | 0.3289 |  0.6426 | 0.0685 | $X$ > 4.0                    |
+    |  bin  |   freq |   miss |   bads |   rate |     woe |     iv |    ks |                     rule                      |
+    |-------|--------|--------|--------|--------|---------|--------|-------|-----------------------------------------------|
+    |   0   |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 |  2.77 | numpy.isnan($X$)                              |
+    |   1   |   2850 |      0 |    367 | 0.1288 | -0.5559 | 0.1268 | 20.04 | $X$ <= 0.0                                    |
+    |   2   |   1369 |      0 |    314 | 0.2294 |  0.1440 | 0.0051 | 16.52 | $X$ > 0.0 and $X$ <= 2.0                      |
+    |   3   |    587 |      0 |    176 | 0.2998 |  0.5078 | 0.0298 | 10.66 | $X$ > 2.0 and $X$ <= 4.0                      |
+    |   4   |    818 |      0 |    269 | 0.3289 |  0.6426 | 0.0685 |  0.00 | $X$ > 4.0                                     |
   """
 
   _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
@@ -386,7 +381,7 @@ def bad_bin(x, y):
   _y = [_[1] for _ in _data if _[2] == 1]
 
   _n = numpy.arange(2, max(3, min(50, len(numpy.unique([_[0] for _ in _data if _[1] == 1 and _[2] == 1])) - 1)))
-  _p = numpy.unique([qcut([_[0] for _ in _data if _[1] == 1 and _[2] == 1], _) for _ in _n])
+  _p = set(tuple(qcut([_[0] for _ in _data if _[1] == 1 and _[2] == 1], _)) for _ in _n)
 
   _l1 = [[_, manual_bin(_x, _y, _)] for _ in _p]
 
@@ -421,13 +416,15 @@ def bad_bin(x, y):
 
 def iso_bin(x, y):
   """
-  The function discretizes the x vector based on the isotonic regression and then summarizes over 
-  the y vector to derive the weight of evidence transformaton (WoE) and information values.
+  The function discretizes the x vector based on the isotonic regression and 
+  then summarizes over the y vector to derive the weight of evidence 
+  transformaton (WoE) and information values.
 
   Parameters:
-    x : A numeric vector to discretize. It is a list, 1-D numpy array, or pandas series. 
-    y : A numeric vector with binary values of 0/1 and with the same length of x.
-        It is a list, 1-D numpy array, or pandas series.
+    x : A numeric vector to discretize. It is a list, 1-D numpy array, 
+        or pandas series. 
+    y : A numeric vector with binary values of 0/1 and with the same length 
+        of x. It is a list, 1-D numpy array, or pandas series.
 
   Returns:
     A dictionary with two keys:
@@ -436,22 +433,21 @@ def iso_bin(x, y):
 
   Example:
     iso_bin(derog, bad)["cut"]
-    # [1.0, 2.0, 3.0]
+    # [1.0, 2.0, 3.0, 23.0]
 
     view_bin(iso_bin(derog, bad))
 
-    |   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule                         |
-    |-------|--------|--------|--------|--------|---------|--------|------------------------------|
-    |     0 |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 | numpy.isnan($X$)             |
-    |     1 |   3741 |      0 |    560 | 0.1497 | -0.3811 | 0.0828 | $X$ <= 1.0                   |
-    |     2 |    478 |      0 |    121 | 0.2531 |  0.2740 | 0.0066 | ($X$ > 1.0) and ($X$ <= 2.0) |
-    |     3 |    332 |      0 |     86 | 0.2590 |  0.3050 | 0.0058 | ($X$ > 2.0) and ($X$ <= 3.0) |
-    |     4 |   1073 |      0 |    359 | 0.3346 |  0.6684 | 0.0978 | $X$ > 3.0                    |
+    |  bin  |   freq |   miss |   bads |   rate |     woe |     iv |    ks |                     rule                      |
+    |-------|--------|--------|--------|--------|---------|--------|-------|-----------------------------------------------|
+    |   0   |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 |  2.77 | numpy.isnan($X$)                              |
+    |   1   |   3741 |      0 |    560 | 0.1497 | -0.3811 | 0.0828 | 18.95 | $X$ <= 1.0                                    |
+    |   2   |    478 |      0 |    121 | 0.2531 |  0.2740 | 0.0066 | 16.52 | $X$ > 1.0 and $X$ <= 2.0                      |
+    |   3   |    332 |      0 |     86 | 0.2590 |  0.3050 | 0.0058 | 14.63 | $X$ > 2.0 and $X$ <= 3.0                      |
+    |   4   |   1064 |      0 |    353 | 0.3318 |  0.6557 | 0.0931 |  0.44 | $X$ > 3.0 and $X$ <= 23.0                     |
+    |   5   |      9 |      0 |      6 | 0.6667 |  2.0491 | 0.0090 |  0.00 | $X$ > 23.0                                    |
   """
 
   _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
-  _freq = len(_data)
-  _bads = sum([_[1] for _ in _data])
 
   _x = [_[0] for _ in _data if _[2] == 1]
   _y = [_[1] for _ in _data if _[2] == 1]
@@ -493,13 +489,15 @@ def iso_bin(x, y):
 
 def rng_bin(x, y):
   """
-  The function discretizes the x vector based on the equal-width range and then summarizes over the
-  y vector to derive the weight of evidence transformaton (WoE) and information values.
+  The function discretizes the x vector based on the equal-width range and 
+  summarizes over the y vector to derive the weight of evidence transformaton 
+  (WoE) and information values.
 
   Parameters:
-    x : A numeric vector to discretize. It is a list, 1-D numpy array, or pandas series.
-    y : A numeric vector with binary values of 0/1 and with the same length of x.
-        It is a list, 1-D numpy array, or pandas series.
+    x : A numeric vector to discretize. It is a list, 1-D numpy array, 
+        or pandas series.
+    y : A numeric vector with binary values of 0/1 and with the same length 
+        of x. It is a list, 1-D numpy array, or pandas series.
 
   Returns:
     A dictionary with two keys:
@@ -512,13 +510,13 @@ def rng_bin(x, y):
 
     view_bin(rng_bin(derog, bad))
 
-    |   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule                           |
-    |-------|--------|--------|--------|--------|---------|--------|--------------------------------|
-    |     0 |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 | numpy.isnan($X$)               |
-    |     1 |   5243 |      0 |   1001 | 0.1909 | -0.0881 | 0.0068 | $X$ <= 7.0                     |
-    |     2 |    322 |      0 |    104 | 0.3230 |  0.6158 | 0.0246 | ($X$ > 7.0) and ($X$ <= 14.0)  |
-    |     3 |     46 |      0 |     15 | 0.3261 |  0.6300 | 0.0037 | ($X$ > 14.0) and ($X$ <= 21.0) |
-    |     4 |     13 |      0 |      6 | 0.4615 |  1.2018 | 0.0042 | $X$ > 21.0                     |
+    |  bin  |   freq |   miss |   bads |   rate |     woe |     iv |   ks |                     rule                      |
+    |-------|--------|--------|--------|--------|---------|--------|------|-----------------------------------------------|
+    |   0   |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 | 2.77 | numpy.isnan($X$)                              |
+    |   1   |   5243 |      0 |   1001 | 0.1909 | -0.0881 | 0.0068 | 4.94 | $X$ <= 7.0                                    |
+    |   2   |    322 |      0 |    104 | 0.3230 |  0.6158 | 0.0246 | 0.94 | $X$ > 7.0 and $X$ <= 14.0                     |
+    |   3   |     46 |      0 |     15 | 0.3261 |  0.6300 | 0.0037 | 0.35 | $X$ > 14.0 and $X$ <= 21.0                    |
+    |   4   |     13 |      0 |      6 | 0.4615 |  1.2018 | 0.0042 | 0.00 | $X$ > 21.0                                    |
   """
 
   _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
@@ -527,7 +525,7 @@ def rng_bin(x, y):
   _y = [_[1] for _ in _data if _[2] == 1]
 
   _n = numpy.arange(2, max(3, min(50, len(numpy.unique(_x)) - 1)))
-  _p = numpy.unique([qcut(numpy.unique(_x), _) for _ in _n])
+  _p = set(tuple(qcut(numpy.unique(_x), _)) for _ in _n)
 
   _l1 = [[_, manual_bin(_x, _y, _)] for _ in _p]
 
@@ -562,13 +560,15 @@ def rng_bin(x, y):
 
 def kmn_bin(x, y):
   """
-  The function discretizes the x vector based on the kmean clustering and then summarizes over
-  the y vector to derive the weight of evidence transformaton (WoE) and information values.
+  The function discretizes the x vector based on the kmean clustering and then 
+  summarizes over the y vector to derive the weight of evidence transformaton 
+  (WoE) and information values.
 
   Parameters:
-    x : A numeric vector to discretize. It is a list, 1-D numpy array, or pandas series.
-    y : A numeric vector with binary values of 0/1 and with the same length of x.
-        It is a list, 1-D numpy array, or pandas series.
+    x : A numeric vector to discretize. It is a list, 1-D numpy array,
+        or pandas series.
+    y : A numeric vector with binary values of 0/1 and with the same length 
+        of x. It is a list, 1-D numpy array, or pandas series.
 
   Returns:
     A dictionary with two keys:
@@ -581,13 +581,13 @@ def kmn_bin(x, y):
 
     view_bin(kmn_bin(derog, bad)) 
 
-    |   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule                          |
-    |-------|--------|--------|--------|--------|---------|--------|-------------------------------|
-    |     0 |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 | numpy.isnan($X$)              |
-    |     1 |   3741 |      0 |    560 | 0.1497 | -0.3811 | 0.0828 | $X$ <= 1.0                    |
-    |     2 |   1249 |      0 |    366 | 0.2930 |  0.4753 | 0.0550 | ($X$ > 1.0) and ($X$ <= 5.0)  |
-    |     3 |    504 |      0 |    157 | 0.3115 |  0.5629 | 0.0318 | ($X$ > 5.0) and ($X$ <= 11.0) |
-    |     4 |    130 |      0 |     43 | 0.3308 |  0.6512 | 0.0112 | $X$ > 11.0                    |
+    |  bin  |   freq |   miss |   bads |   rate |     woe |     iv |    ks |                     rule                      |
+    |-------|--------|--------|--------|--------|---------|--------|-------|-----------------------------------------------|
+    |   0   |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 |  2.77 | numpy.isnan($X$)                              |
+    |   1   |   3741 |      0 |    560 | 0.1497 | -0.3811 | 0.0828 | 18.95 | $X$ <= 1.0                                    |
+    |   2   |   1249 |      0 |    366 | 0.2930 |  0.4753 | 0.0550 |  7.37 | $X$ > 1.0 and $X$ <= 5.0                      |
+    |   3   |    504 |      0 |    157 | 0.3115 |  0.5629 | 0.0318 |  1.72 | $X$ > 5.0 and $X$ <= 11.0                     |
+    |   4   |    130 |      0 |     43 | 0.3308 |  0.6512 | 0.0112 |  0.00 | $X$ > 11.0                                    |
   """
 
   _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
@@ -606,7 +606,7 @@ def kmn_bin(x, y):
   _md = [[numpy.median([_[0] for _ in _data if _[2] == 1])],
          [numpy.median([_[0] for _ in _data if _[2] == 1 and _[1] == 1])]]
 
-  _c3 = list(numpy.unique([upper(_2)[:-1] for _2 in [group(_1) for _1 in _c2]])) + _md
+  _c3 = list(set(tuple(upper(_2)[:-1]) for _2 in [group(_1) for _1 in _c2])) + _md
 
   _l1 = [[_, manual_bin(_x, _y, _)] for _ in _c3]
 
@@ -641,13 +641,15 @@ def kmn_bin(x, y):
 
 def gbm_bin(x, y):
   """
-  The function discretizes the x vector based on the gradient boosting machine and then summarizes 
-  over the y vector to derive the weight of evidence transformaton (WoE) and information values.
+  The function discretizes the x vector based on the gradient boosting machine 
+  and then summarizes over the y vector to derive the weight of evidence 
+  transformaton (WoE) and information values.
 
   Parameters:
-    x : A numeric vector to discretize. It is a list, 1-D numpy array, or pandas series. 
-    y : A numeric vector with binary values of 0/1 and with the same length of x.
-        It is a list, 1-D numpy array, or pandas series.
+    x : A numeric vector to discretize. It is a list, 1-D numpy array, 
+        or pandas series. 
+    y : A numeric vector with binary values of 0/1 and with the same length 
+        of x. It is a list, 1-D numpy array, or pandas series.
 
   Returns:
     A dictionary with two keys:
@@ -660,15 +662,15 @@ def gbm_bin(x, y):
 
     view_bin(gbm_bin(derog, bad))
 
-    |   bin |   freq |   miss |   bads |   rate |     woe |     iv | rule                           |
-    |-------|--------|--------|--------|--------|---------|--------|--------------------------------|
-    |     0 |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 | numpy.isnan($X$)               |
-    |     1 |   3741 |      0 |    560 | 0.1497 | -0.3811 | 0.0828 | $X$ <= 1.0                     |
-    |     2 |    478 |      0 |    121 | 0.2531 |  0.2740 | 0.0066 | ($X$ > 1.0) and ($X$ <= 2.0)   |
-    |     3 |    332 |      0 |     86 | 0.2590 |  0.3050 | 0.0058 | ($X$ > 2.0) and ($X$ <= 3.0)   |
-    |     4 |   1063 |      0 |    353 | 0.3321 |  0.6572 | 0.0934 | ($X$ > 3.0) and ($X$ <= 22.0)  |
-    |     5 |      6 |      0 |      3 | 0.5000 |  1.3559 | 0.0025 | ($X$ > 22.0) and ($X$ <= 26.0) |
-    |     6 |      4 |      0 |      3 | 0.7500 |  2.4546 | 0.0056 | $X$ > 26.0                     |
+    |  bin  |   freq |   miss |   bads |   rate |     woe |     iv |    ks |                     rule                      |
+    |-------|--------|--------|--------|--------|---------|--------|-------|-----------------------------------------------|
+    |   0   |    213 |    213 |     70 | 0.3286 |  0.6416 | 0.0178 |  2.77 | numpy.isnan($X$)                              |
+    |   1   |   3741 |      0 |    560 | 0.1497 | -0.3811 | 0.0828 | 18.95 | $X$ <= 1.0                                    |
+    |   2   |    478 |      0 |    121 | 0.2531 |  0.2740 | 0.0066 | 16.52 | $X$ > 1.0 and $X$ <= 2.0                      |
+    |   3   |    332 |      0 |     86 | 0.2590 |  0.3050 | 0.0058 | 14.63 | $X$ > 2.0 and $X$ <= 3.0                      |
+    |   4   |   1063 |      0 |    353 | 0.3321 |  0.6572 | 0.0934 |  0.42 | $X$ > 3.0 and $X$ <= 22.0                     |
+    |   5   |      6 |      0 |      3 | 0.5000 |  1.3559 | 0.0025 |  0.23 | $X$ > 22.0 and $X$ <= 26.0                    |
+    |   6   |      4 |      0 |      3 | 0.7500 |  2.4546 | 0.0056 |  0.00 | $X$ > 26.0                                    |
   """
 
   _data = [_ for _ in zip(x, y, ~numpy.isnan(x))]
