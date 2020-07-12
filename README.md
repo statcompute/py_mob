@@ -23,7 +23,7 @@ People without the background knowledge in the consumer risk modeling might be w
 #### Package Dependencies
 
 ```text
-numpy, scipy, sklearn, lightgbm, tabulate
+numpy, scipy, sklearn, lightgbm, tabulate, pkg_resources
 ```
 
 #### Installation
@@ -44,19 +44,20 @@ py_mob
    |-- gbm_bin()  : A discretization algorthm based on the gradient boosting machine
    |-- summ_bin() : Generates the statistical summary for the binning outcome.
    |-- view_bin() : Displays the binning outcome in a tabular form.
-   `-- cal_woe()  : Applies the WoE transformation to a numeric vector based on the binning outcome.
+   |-- cal_woe()  : Applies the WoE transformation to a numeric vector based on the binning outcome.
+   `-- get_data() : Loads the testing dataset.
 ```
 
 #### Example
 
 ```python
-import sas7bdat, py_mob
+import py_mob
 
-df = sas7bdat.SAS7BDAT("accepts.sas7bdat").to_data_frame()
+dt = py_mob.get_data("accepts")
 
-utl = df.rev_util.to_numpy()
+utl = dt["rev_util"]
 
-bad = df.bad.to_numpy()
+bad = dt["bad"]
 
 utl_bin = py_mob.qtl_bin(utl, bad)
 
