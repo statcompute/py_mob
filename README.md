@@ -23,7 +23,7 @@ People without the background knowledge in the consumer risk modeling might be w
 #### Package Dependencies
 
 ```text
-numpy, scipy, sklearn, lightgbm, tabulate, pkg_resources
+pandas, numpy, scipy, sklearn, lightgbm, tabulate, pkg_resources
 ```
 
 #### Installation
@@ -53,7 +53,7 @@ py_mob
 #### Example
 
 ```python
-import py_mob
+import pandas, py_mob
 
 dt = py_mob.get_data("accepts")
 
