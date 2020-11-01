@@ -36,16 +36,18 @@ pip3 install py_mob
 
 ```
 py_mob
-   |-- qtl_bin()  : An iterative discretization based on quantiles of X.
-   |-- bad_bin()  : A revised iterative discretization for records with Y = 1.
-   |-- iso_bin()  : A discretization algorthm driven by the isotonic regression between X and Y.
-   |-- rng_bin()  : A revised iterative discretization based on the equal-width range of X.
-   |-- kmn_bin()  : A discretization algorthm based on the kmean clustering of X.
-   |-- gbm_bin()  : A discretization algorthm based on the gradient boosting machine
-   |-- summ_bin() : Generates the statistical summary for the binning outcome.
-   |-- view_bin() : Displays the binning outcome in a tabular form.
-   |-- cal_woe()  : Applies the WoE transformation to a numeric vector based on the binning outcome.
-   `-- get_data() : Loads the testing dataset.
+  |-- qtl_bin()  : An iterative discretization based on quantiles of X.
+  |-- bad_bin()  : A revised iterative discretization for records with Y = 1.
+  |-- iso_bin()  : A discretization algorthm driven by the isotonic regression between X and Y.
+  |-- rng_bin()  : A revised iterative discretization based on the equal-width range of X.
+  |-- kmn_bin()  : A discretization algorthm based on the kmean clustering of X.
+  |-- gbm_bin()  : A discretization algorthm based on the gradient boosting machine.
+  |-- summ_bin() : Generates the statistical summary for the binning outcome.
+  |-- view_bin() : Displays the binning outcome in a tabular form.
+  |-- cal_woe()  : Applies the WoE transformation to a numeric vector based on the binning outcome.
+  |-- pd_bin()   : Discretizes each vector in a pandas DataFrame.
+  |-- pd_woe()   : Applies WoE transformaton to each vector in the pandas DataFrame.
+  `-- get_data() : Loads the testing dataset.
 ```
 
 #### Example
@@ -127,4 +129,20 @@ for x in py_mob.cal_woe(utl[:3], py_mob.iso_bin(utl, bad)):
 #{'x':  0.0, 'bin': 1, 'woe': -0.3254}
 #{'x':  2.0, 'bin': 1, 'woe': -0.3254}
 #{'x': 21.0, 'bin': 1, 'woe': -0.3254}
+
+### DISCRETIZES VECTORS IN PANDAS DATAFRAME
+df = pandas.DataFrame(dt)
+
+rst = py_mob.pd_bin(df['bad'], df[['ltv', 'bureau_score', 'tot_derog']])
+
+rst.keys()
+# dict_keys(['bin_sum', 'bin_out'])
+
+### APPLIES WOE TRANSFORMATIONS TO VECTORS IN PANDAS DATAFRAME
+out = py_mob.pd_woe(df[['ltv', 'bureau_score', 'tot_derog']], rst["bin_out"])
+
+out.head(2)
+#       ltv  bureau_score  tot_derog
+# 0  0.1619       -1.2560     0.6557
+# 1  0.0804       -1.1961    -0.3811
 ```
